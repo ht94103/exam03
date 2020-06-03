@@ -59,11 +59,7 @@ mqttc.subscribe(topic, 0)
 
 for i in range 100:
     line = s.readline()
-
 	v.append(float(line))
-
     mesg = v[i]
-
     mqttc.publish(topic, mesg)
-
     print(mesg)

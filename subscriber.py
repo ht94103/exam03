@@ -47,7 +47,5 @@ num = 0
 
 for i in range 100:
     line = s.readline()
-
     mesg = float(line)
-
     print(mesg)

@@ -110,7 +110,7 @@ void logger(){
    Timer timer_wait;
    timer_wait.start();
    for (int i = 0; i < 100; i++){
-      Velocity[i] = 9.8*sqrt(t[0]*t[0] + t[1]*t[1])*100;
+      Velocity[i] = 9.8*0.1*sqrt(t[0]*t[0] + t[1]*t[1])*100;
       //pc.printf("%1.4f\r\n", Velocity[i]);
       while(1){
         if (timer_wait.read() > 0.1){
