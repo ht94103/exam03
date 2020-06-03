@@ -3,6 +3,7 @@
 #include "fsl_gpio.h"
 #include "math.h"
 #include "mbed_rpc.h"
+#include<stdlib.h>
 #define UINT14_MAX        16383
 // FXOS8700CQ I2C address
 #define FXOS8700CQ_SLAVE_ADDR0 (0x1E<<1) // with pins SA0=0, SA1=0
@@ -24,7 +25,8 @@
 #define FXOS8700Q_M_CTRL_REG2 0x5C
 #define FXOS8700Q_WHOAMI_VAL 0xC7
 I2C i2c( PTD9,PTD8);
-Serial pc(USBTX, USBRX);
+RawSerial pc(USBTX, USBRX);
+RawSerial xbee(D12, D11);
 InterruptIn sw2(SW2);
 RpcDigitalOut myled1(LED1,"myled1");
 void LEDControl(Arguments *in, Reply *out);
@@ -48,16 +50,18 @@ int j = 0;
 
 EventQueue accqueue;
 EventQueue logqueue;
-Thread xbee_thread(osPriorityLow);
 EventQueue xbee_queue(32 * EVENTS_EVENT_SIZE);
+Thread acc_thread(osPriorityLow);
+Thread log_thread(osPriorityLow);
+Thread xbee_thread(osPriorityLow);
 
 int main(){
     pc.baud(9600);
 
     Thread accthr(osPriorityHigh);
     Thread logthr(osPriorityLow);
-    accthr.start(callback(&accqueue, &EventQueue::dispatch_forever));
-    logthr.start(callback(&logqueue, &EventQueue::dispatch_forever));
+    acc_thread.start(callback(&accqueue, &EventQueue::dispatch_forever));
+    log_thread.start(callback(&logqueue, &EventQueue::dispatch_forever));
     Ticker log_accTicker;
     log_accTicker.attach(accqueue.event(&log_acc), 0.1f);
     char xbee_reply[4];
@@ -89,7 +93,7 @@ int main(){
     xbee.getc();
     pc.printf("start\r\n");
 
-    t.start(callback(&queue, &EventQueue::dispatch_forever));
+    xbee_thread.start(callback(&xbee_queue, &EventQueue::dispatch_forever));
     xbee.attach(xbee_rx_interrupt, Serial::RxIrq);
     Ticker xbeeTicker;
     xbeeTicker.attach(xbee_queue.event(&log_acc), 0.1f);
@@ -167,7 +171,7 @@ void xbee_rx_interrupt(void)
 
   xbee.attach(NULL, Serial::RxIrq); // detach interrupt
 
-  queue.call(&xbee_rx);
+  xbee_queue.call(&xbee_rx);
 
 }
 
@@ -199,7 +203,6 @@ void xbee_rx(void)
 
         pc.printf("%1.4f\r\n", Velocity[j]);
 
-        number = 0;
         j++;
         if (j == 100){
             j = 0;
