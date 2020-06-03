@@ -48,22 +48,16 @@ float AccData[103][3];
 float v[101];
 int j = 0;
 
-EventQueue accqueue;
+
 EventQueue logqueue;
 EventQueue xbee_queue(32 * EVENTS_EVENT_SIZE);
-Thread acc_thread(osPriorityLow);
 Thread log_thread(osPriorityLow);
 Thread xbee_thread(osPriorityLow);
 
 int main(){
     pc.baud(9600);
 
-    Thread accthr(osPriorityHigh);
-    Thread logthr(osPriorityLow);
-    acc_thread.start(callback(&accqueue, &EventQueue::dispatch_forever));
     log_thread.start(callback(&logqueue, &EventQueue::dispatch_forever));
-    Ticker log_accTicker;
-    log_accTicker.attach(accqueue.event(&log_acc), 0.1f);
     char xbee_reply[4];
 
     xbee.baud(9600);
@@ -97,7 +91,7 @@ int main(){
     xbee.attach(xbee_rx_interrupt, Serial::RxIrq);
     Ticker xbeeTicker;
     xbeeTicker.attach(xbee_queue.event(&log_acc), 0.1f);
-    sw2.fall(&log_logger);
+    sw2.fall(&log_logger);   // press sw2 to start measure and store the horizontal velocity
 
     while(1){wait(1);};
 }
@@ -111,7 +105,6 @@ void logger(){
    timer_wait.start();
    for (int i = 0; i < 100; i++){
       Velocity[i] = 9.8*0.1*sqrt(t[0]*t[0] + t[1]*t[1])*100;
-      //pc.printf("%1.4f\r\n", Velocity[i]);
       while(1){
         if (timer_wait.read() > 0.1){
         timer_wait.reset();
@@ -122,7 +115,6 @@ void logger(){
 }
 
 void log_acc() {
-   //LED = !LED;
 
    uint8_t who_am_i, data[2], res[6];
    int16_t acc16;
@@ -180,33 +172,34 @@ void xbee_rx(void)
 
 {
 
-    static int i = 0;
-    char buf[100] = {0};
+      static int i = 0;
+      char buf[100] = {0};
 
-    char outbuf[100] = {0};
+      char outbuf[100] = {0};
 
-    while(xbee.readable()){
+      while(xbee.readable()){
 
-        char c = xbee.getc();
+         char c = xbee.getc();
 
-        if(c!='\r' && c!='\n'){
-            buf[i] = c;
-            i++;
-            buf[i] = '\0';
-        }
-        else{
-            i = 0;
-        }
-        v[j] = strof(buf, NULL);
-        RPC::call(buf, outbuf);
+         if(c!='\r' && c!='\n'){
+               buf[i] = c;
+               i++;
+               buf[i] = '\0';
+         }
+         else{
+               i = 0;
+         }
+         v[j] = strof(buf, NULL);
+         RPC::call(buf, outbuf);
 
 
-        pc.printf("%1.4f\r\n", Velocity[j]);
+         pc.printf("%1.4f\r\n", Velocity[j]);  //send velocity data to mqtt publisher
 
-        j++;
-        if (j == 100){
-            j = 0;
-        }
+         j++;
+
+         if (j == 100){
+               j = 0;
+         }
 
     }
 
